@@ -1,134 +1,95 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { Plugin, Notice, MarkdownView, Modal, App } from "obsidian";
+import markdownToTxt from "markdown-to-txt";
 
-// Remember to rename these classes and interfaces!
+export default class AIAnnotatorPlugin extends Plugin {
+  async onload() {
+    console.log("AI Annotator Plugin Loaded!");
+    // Command to convert full note to plain text
+    this.addCommand({
+      id: "convert-to-plain-text",
+      name: "Convert Note to Plain Text",
+      callback: () => this.convertNoteToPlainText(),
+    });
+  }
 
-interface MyPluginSettings {
-	mySetting: string;
+  async convertNoteToPlainText() {
+    const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (!activeView) {
+      new Notice("No active markdown note found!");
+      return;
+    }
+
+    let markdownContent = activeView.editor.getValue();
+
+    // Prompt user for start and end markers using Obsidian's modal
+    const startMarker = await this.promptUser("Enter the start marker:", "Table of Contents");
+    const endMarker = await this.promptUser("Enter the end marker:", "See Also Internal Reference");
+
+	// Adjusted regex to capture headings properly
+	const regex = new RegExp(
+		`(^|\\n)(#{1,6}\\s*)?${startMarker}([\\s\\S]*?)(#{1,6}\\s*)?${endMarker}($|\\n)`,
+		"i"
+	);
+	let extractedContent = markdownContent.match(regex);
+	if (extractedContent) {
+		markdownContent = extractedContent[0];
+	} else {
+		new Notice("No matching section found");
+		return;
+	}
+  
+
+    // Remove full code blocks (triple backticks ``` and tilde blocks ~~~)
+    markdownContent = markdownContent.replace(/```[\s\S]*?```|~~~[\s\S]*?~~~/g, "");
+    // Remove images (![alt text](url) and Obsidian-style ![[image]] embeds)
+    markdownContent = markdownContent.replace(/!\[.*?\]\(.*?\)/g, "");
+    markdownContent = markdownContent.replace(/!\[\[.*?\]\]/g, "");
+
+    // Convert Markdown to plain text
+    const plainText = markdownToTxt(markdownContent);
+    new Notice("Conversion to plain text completed!");
+    console.log("Plain Text Output:", plainText);
+  }
+
+  // Helper Method to prompt the user for input using Obsidian's modal
+  async promptUser(message: string, defaultValue: string): Promise<string> {
+    return new Promise((resolve) => {
+      const modal = new InputModal(this.app, message, defaultValue, resolve);
+      modal.open();
+    });
+  }
+
+  async onunload() {
+    console.log("AI Annotator Plugin Unloaded!");
+  }
 }
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
-}
+class InputModal extends Modal {
+  message: string;
+  defaultValue: string;
+  onSubmit: (value: string) => void;
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+  constructor(app: App, message: string, defaultValue: string, onSubmit: (value: string) => void) {
+    super(app);
+    this.message = message;
+    this.defaultValue = defaultValue;
+    this.onSubmit = onSubmit;
+  }
 
-	async onload() {
-		await this.loadSettings();
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.createEl("h2", { text: this.message });
 
-		// This creates an icon in the left ribbon.
-		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
-		// Perform additional things with the ribbon
-		ribbonIconEl.addClass('my-plugin-ribbon-class');
+    const input = contentEl.createEl("input", { type: "text", value: this.defaultValue });
+    input.style.width = "100%";
 
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status Bar Text');
+    const submitButton = contentEl.createEl("button", { text: "OK" });
+    submitButton.style.marginTop = "10px";
 
-		// This adds a simple command that can be triggered anywhere
-		this.addCommand({
-			id: 'open-sample-modal-simple',
-			name: 'Open sample modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			}
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'sample-editor-command',
-			name: 'Sample editor command',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				console.log(editor.getSelection());
-				editor.replaceSelection('Sample Editor Command');
-			}
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-sample-modal-complex',
-			name: 'Open sample modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
-
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
-			}
-		});
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			console.log('click', evt);
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
-	}
-
-	onunload() {
-
-	}
-
-	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-	}
-
-	async saveSettings() {
-		await this.saveData(this.settings);
-	}
-}
-
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
-
-	onOpen() {
-		const {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
-
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
-	}
-}
-
-class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
-
-	constructor(app: App, plugin: MyPlugin) {
-		super(app, plugin);
-		this.plugin = plugin;
-	}
-
-	display(): void {
-		const {containerEl} = this;
-
-		containerEl.empty();
-
-		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
-			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
-				.onChange(async (value) => {
-					this.plugin.settings.mySetting = value;
-					await this.plugin.saveSettings();
-				}));
-	}
+    submitButton.addEventListener("click", () => {
+      this.onSubmit(input.value);
+      this.close();
+    });
+  }
 }
