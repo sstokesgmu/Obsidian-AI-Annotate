@@ -13,11 +13,8 @@ export default class AIAnnotatorPlugin extends Plugin {
     const desktopPath = path.join('C:', 'Users', 'sterl', 'Desktop', 'Test');
     let b = path.join(desktopPath,hiddenFile,'plugins','obsidian-ai-annotator');
 
-    console.log(b);
     const envPath = path.resolve(b,'.env');
-    console.log(envPath);
-    console.log(dotenv.config({path:envPath}));
-
+    dotenv.config({path:envPath});
     //Initialize OpenAI client 
     this.openAI = new OpenAI({apiKey: process.env.OPENAI_API_KEY,dangerouslyAllowBrowser:true})
 
@@ -39,10 +36,11 @@ export default class AIAnnotatorPlugin extends Plugin {
     }
 
     let markdownContent = activeView.editor.getValue();
-
     // Prompt user for start and end markers using Obsidian's modal
     const startMarker = await this.promptUser("Enter the start marker:", "Table of Contents");
     const endMarker = await this.promptUser("Enter the end marker:", "See Also Internal Reference");
+
+    //ToDo: get a list of all headings in the note and list them out in the modal
 
 	// Adjusted regex to capture headings properly
 	const regex = new RegExp(
@@ -101,7 +99,7 @@ Content Depth: Recommend areas that could benefit from further elaboration, exam
 Further Reading: Suggest resources, books, articles, or papers that the reader can explore to gain a deeper understanding of the topic discussed. Include references or citations where applicable.
 Annotations: Provide annotations where applicable, such as identifying unclear or unsupported statements, and offering suggestions for how the content could be improved in terms of content depth or structure.
 Format:
-For Fact Checks: Provide the original statement, followed by the corrected statement with an explanation, and ideally a source to verify the correction.
+For Fact Checks: Provide the original statement, followed by the corrected statement with an explanation, and ideally a source to verify the correction.make sure to use Fact Check: ❌ and Correction: ✅
 
 Example: Fact Check: ❌ "The Eiffel Tower was built in 1870." ✅ Correction: "The Eiffel Tower was built in 1887 and completed in 1889." (Source: Wikipedia)
 
@@ -190,6 +188,11 @@ class InputModal extends Modal {
     this.message = message;
     this.defaultValue = defaultValue;
     this.onSubmit = onSubmit;
+  }
+
+  createBounds()
+  {
+
   }
 
   onOpen() {
