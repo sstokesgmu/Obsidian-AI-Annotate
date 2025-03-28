@@ -5,18 +5,17 @@ interface Rule {
 	description: string;
 }
 
-interface Section
+export interface Section
 {
     heading: string;
     content: string; //lower heading or strings
 }
 
-class Parser {
+export default class Parser {
 	rules: Rule[];
 	options: Object;
-	markdownContent: string;
-
-	constructor(content: string, options: Object) {
+	markdownContent: string
+	constructor(content: string) {
 		this.rules = [
 			{ regPattern: /#{6}\s?([^\n]+)/g, description: "h6" },
 			{ regPattern: /#{5}\s?([^\n]+)/g, description: "h5" },
@@ -30,55 +29,50 @@ class Parser {
 			},
 			{ regPattern: /!\[\[.*?\]\]/g, description: "images" },
 			{ regPattern: /!\[.*?\]\(.*?\)/g, description: "link" },
-		];
-
-        //options should be optional
-		this.options = options;
+		]; 
 		this.markdownContent = content;
 	}
 	//Methods
 	getSections() {
         const sections: Section[] = [];
-        let currentSection: Section | null = null;
+        let lastSection: Section | null = null;
         //?This allows us to create substrings that still match the regex expression
         let match: RegExpExecArray | null;
 
         const regex = /#{1,6}\s?([^\n]+)/g; //regex to match all headings of all levels 
 
-        let lastIndex = 0; //To track the last matched position out of the whole array
-
+        let lastIndex = 0; //To track the where to start the next 
         while ((match = regex.exec(this.markdownContent)) !== null)
         {
-            const heading = match[1]; // The heading text
-            const headingStartIndex = match.index; //position of the heading
-            const headingEndIndex = regex.lastIndex; //End position of the heading
+            const heading = match[1]; // Heading Text will be the full heading
+            const headingStartIndex = match.index;
+            const headingEndIndex = regex.lastIndex //data property of a RegExp instance specifies the index at which to start the next match.
+            // console.log(`Match: ${heading} Start Index: ${headingStartIndex} End Index: ${headingEndIndex}`);
 
-            //If this is not the first seciton, capture the contennt from the last heading 
-            if (currentSection) {
-                const content = this.markdownContent.slice(lastIndex,headingStartIndex).trim();
-                currentSection.content = content; // Store the content of the previous section
-                sections.push(currentSection);
+            // method contains the full matched string in match[0] and the captured groups in subsequent elements (like match[1], match[2], etc.), but only if your regular expression includes capturing groups (using parentheses ()).
+            //? Why this: 
+            //! Inorder to get the content heading we created in the last match we need to find the start of the next match which is match.index
+            if (lastSection)  // Here we are saying did we have a match last time, yes, find content
+            {   
+                const content = this.markdownContent.slice(lastIndex, headingStartIndex).trim();
+                lastSection.content = content; //cache in the previous section
+                sections.push(lastSection);
+                
             }
-
-            // Update the last index to the end of the current heading
-            lastIndex = headingEndIndex;
-
-            //Create a new section for the current heading 
-            currentSection = {
+            lastSection = {
                 heading: heading,
-                content: '', //Content will be filled later.
+                content: '',
             }
+            lastIndex = headingEndIndex;
         }
-
-        //After the loop, we still need to capture the content after the last heading
-        if (currentSection)
+        // //After the loop, we still need to capture the content after the last heading
+        if(lastSection)
         {
             const content = this.markdownContent.slice(lastIndex).trim();
-            currentSection.content = content;
-            sections.push(currentSection);
+            lastSection.content = content;
+            sections.push(lastSection);
         }
-
-        return sections.
+        return sections 
     }
 	findandRemove(options) {}
 	translateToPlaintext() {

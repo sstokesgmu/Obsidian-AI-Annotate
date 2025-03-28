@@ -1,6 +1,8 @@
 import { Plugin, Notice, MarkdownView, Modal, App} from "obsidian";
 import markdownToTxt from "markdown-to-txt";
 import {OpenAI} from 'openai';
+import Parser from "utilities/parser";
+import DropDownModal from "utilities/dropdownModal";
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 
@@ -35,44 +37,57 @@ export default class AIAnnotatorPlugin extends Plugin {
       return;
     }
 
-    let markdownContent = activeView.editor.getValue();
-    // Prompt user for start and end markers using Obsidian's modal
-    const startMarker = await this.promptUser("Enter the start marker:", "Table of Contents");
-    const endMarker = await this.promptUser("Enter the end marker:", "See Also Internal Reference");
+  let markdownContent = activeView.editor.getValue();
+  //ToDo: get a list of all headings in the note and list them out in the modal
+  const parser = new Parser(markdownContent);
+  const sections = parser.getSections();
+  const func = async (sections) : Promise<any> => {
+    return new Promise((resolve) => {
+      const modal = new DropDownModal(this.app, sections, resolve);
+      modal.open();
+    })
+  } 
+  console.log(await func(sections))
 
-    //ToDo: get a list of all headings in the note and list them out in the modal
 
-	// Adjusted regex to capture headings properly
-	const regex = new RegExp(
-		`(^|\\n)(#{1,6}\\s*)?${startMarker}([\\s\\S]*?)(#{1,6}\\s*)?${endMarker}($|\\n)`,
-		"i"
-	);
-
-	let extractedContent = markdownContent.match(regex);
-	if (extractedContent) {
-		markdownContent = extractedContent[0];
-	} else {
-    //? Else grab the whole note
-		new Notice("No matching section found");
-		return;
-	}
+  //TODO: Send to the modal
   
 
-    // Remove full code blocks (triple backticks ``` and tilde blocks ~~~)
-    markdownContent = markdownContent.replace(/```[\s\S]*?```|~~~[\s\S]*?~~~/g, "");
-    // Remove images (![alt text](url) and Obsidian-style ![[image]] embeds)
-    markdownContent = markdownContent.replace(/!\[.*?\]\(.*?\)/g, "");
-    markdownContent = markdownContent.replace(/!\[\[.*?\]\]/g, "");
+  const plainText = parser.translateToPlaintext();
+	// // Adjusted regex to capture headings properly
+	// const regex = new RegExp(
+	// 	`(^|\\n)(#{1,6}\\s*)?${startMarker}([\\s\\S]*?)(#{1,6}\\s*)?${endMarker}($|\\n)`,
+	// 	"i"
+	// );
 
-    // Convert Markdown to plain text
-    const plainText = markdownToTxt(markdownContent);
+	// let extractedContent = markdownContent.match(regex);
+	// if (extractedContent) {
+	// 	markdownContent = extractedContent[0];
+	// } else {
+  //   //? Else grab the whole note
+	// 	new Notice("No matching section found");
+	// 	return;
+	// }
+  
+
+  //   // Remove full code blocks (triple backticks ``` and tilde blocks ~~~)
+  //   markdownContent = markdownContent.replace(/```[\s\S]*?```|~~~[\s\S]*?~~~/g, "");
+  //   // Remove images (![alt text](url) and Obsidian-style ![[image]] embeds)
+  //   markdownContent = markdownContent.replace(/!\[.*?\]\(.*?\)/g, "");
+  //   markdownContent = markdownContent.replace(/!\[\[.*?\]\]/g, "");
+
+  
+
+
+
+    
     new Notice("Conversion to plain text completed!");
    
     
-    const response = await this.sendToOpenAI(plainText);
+    // const response = await this.sendToOpenAI(plainText);
 
-    // organize the response in a  side bar that I can use 
-    await this.openNewNote(response as string);
+    // // organize the response in a  side bar that I can use 
+    // await this.openNewNote(response as string);
   }
 
   // Helper Method to prompt the user for input using Obsidian's modal
