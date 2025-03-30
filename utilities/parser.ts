@@ -35,6 +35,27 @@ export default class Parser {
 		this.markdownContent = content;
 	}
 	//Methods
+
+	// TODO: Consider ChatGPT Suggestions
+/*
+  1. **Avoid using a Map if order isn't necessary**:
+     - You might not need a Map if the order of the headings doesn't matter. 
+     - Consider using a plain object or a Set, which could be more efficient depending on your needs.
+
+  2. **Combine the while loop and filtering logic**:
+     - Instead of using a separate function to filter headings, 
+     - Perform the filtering directly inside the loop. This removes an extra iteration over the Map and makes the code more efficient.
+
+  3. **Use `for...of` to iterate over `this.markdownContent`**:
+     - Regular expressions with `exec()` can be verbose, and manually tracking the last index can introduce bugs.
+     - Using `for...of` with `match` will allow cleaner, more readable code.
+
+  4. **Optimize Regular Expression Matching**:
+     - Avoid repeatedly applying the regex. Process content in chunks to minimize unnecessary operations.
+     - Also, consider whether you need all matches or if you can limit processing to valid sections only.
+*/
+
+
 	getHeadings() {
 		const sections: Map<string,Section> = new Map();
 		let lastSection: Section | null = null;
