@@ -25,7 +25,6 @@ export default class DropDownModal extends Modal
         this.defaultValue.forEach((option:Section) => startSelectEl.createEl('option', {text: option.heading, value:option.heading}));
         const endSelectEl = contentEl.createEl('select');
         this.defaultValue.forEach((option:Section) => endSelectEl.createEl('option',{text:option.heading, value:option.heading}))
-
         const button = contentEl.createEl('button', {text:'Submit'});
         button.addEventListener("click", () => {
             this.onSubmit({start:startSelectEl.value, end:endSelectEl.value})

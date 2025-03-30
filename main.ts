@@ -1,109 +1,85 @@
-import { Plugin, Notice, MarkdownView, Modal, App} from "obsidian";
+import { Plugin, Notice, MarkdownView, Modal, App } from "obsidian";
 import markdownToTxt from "markdown-to-txt";
-import {OpenAI} from 'openai';
+import { OpenAI } from "openai";
 import Parser from "utilities/parser";
 import DropDownModal from "utilities/dropdownModal";
-import * as dotenv from 'dotenv';
-import * as path from 'path';
+import * as dotenv from "dotenv";
+import * as path from "path";
 
 export default class AIAnnotatorPlugin extends Plugin {
-  private openAI:OpenAI;
+	private openAI: OpenAI;
 
-  async onload() 
-  {
-    const hiddenFile = this.app.vault.configDir;
-    const desktopPath = path.join('C:', 'Users', 'sterl', 'Desktop', 'Test');
-    let b = path.join(desktopPath,hiddenFile,'plugins','obsidian-ai-annotator');
+	async onload() {
+		const hiddenFile = this.app.vault.configDir;
+		const desktopPath = path.join(
+			"C:",
+			"Users",
+			"sterl",
+			"Desktop",
+			"Test"
+		);
+		let b = path.join(
+			desktopPath,
+			hiddenFile,
+			"plugins",
+			"obsidian-ai-annotator"
+		);
+		const envPath = path.resolve(b, ".env");
+		dotenv.config({ path: envPath });
+		//Initialize OpenAI client
+		this.openAI = new OpenAI({
+			apiKey: process.env.OPENAI_API_KEY,
+			dangerouslyAllowBrowser: true,
+		});
+		// Command to convert full note to plain text
+		this.addCommand({
+			id: "convert-to-plain-text",
+			name: "Convert Note to Plain Text",
+			callback: () => this.convertNoteToPlainText(),
+		});
 
-    const envPath = path.resolve(b,'.env');
-    dotenv.config({path:envPath});
-    //Initialize OpenAI client 
-    this.openAI = new OpenAI({apiKey: process.env.OPENAI_API_KEY,dangerouslyAllowBrowser:true})
+		console.log("AI Annotator Plugin Loaded!");
+	}
 
-    // Command to convert full note to plain text
-    this.addCommand({
-      id: "convert-to-plain-text",
-      name: "Convert Note to Plain Text",
-      callback: () => this.convertNoteToPlainText(),
-    });
+	async convertNoteToPlainText() {
+		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+		if (!activeView) {
+			new Notice("No active markdown note found!");
+			return;
+		}
+		let markdownContent = activeView.editor.getValue();
+		//ToDo: get a list of all headings in the note and list them out in the modal
+		const parser = new Parser(markdownContent);
+		const sections = parser.getHeadings();
+		const func = async (sections): Promise<any> => {
+			return new Promise((resolve) => {
+				const modal = new DropDownModal(this.app, sections, resolve);
+				modal.open();
+			});
+		};
+		const bounds = await func(sections);
+		parser.getContent(bounds);
+		new Notice("Conversion to plain text completed!");
+		// const response = await this.sendToOpenAI(b);
+		// organize the response in a  side bar that I can use
+		// await this.openNewNote(response as string);
+	}
 
-    console.log("AI Annotator Plugin Loaded!");
-  }
-
-  async convertNoteToPlainText() {
-    const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-    if (!activeView) {
-      new Notice("No active markdown note found!");
-      return;
-    }
-
-  let markdownContent = activeView.editor.getValue();
-  //ToDo: get a list of all headings in the note and list them out in the modal
-  const parser = new Parser(markdownContent);
-  const sections = parser.getSections();
-  const func = async (sections) : Promise<any> => {
-    return new Promise((resolve) => {
-      const modal = new DropDownModal(this.app, sections, resolve);
-      modal.open();
-    })
-  } 
-  console.log(await func(sections))
-
-
-  //TODO: Send to the modal
-  
-
-  const plainText = parser.translateToPlaintext();
-	// // Adjusted regex to capture headings properly
-	// const regex = new RegExp(
-	// 	`(^|\\n)(#{1,6}\\s*)?${startMarker}([\\s\\S]*?)(#{1,6}\\s*)?${endMarker}($|\\n)`,
-	// 	"i"
-	// );
-
-	// let extractedContent = markdownContent.match(regex);
-	// if (extractedContent) {
-	// 	markdownContent = extractedContent[0];
-	// } else {
-  //   //? Else grab the whole note
-	// 	new Notice("No matching section found");
-	// 	return;
+	// // Helper Method to prompt the user for input using Obsidian's modal
+	// async promptUser(message: string, defaultValue: string): Promise<string> {
+	// 	return new Promise((resolve) => {
+	// 		const modal = new InputModal(
+	// 			this.app,
+	// 			message,
+	// 			defaultValue,
+	// 			resolve
+	// 		);
+	// 		modal.open();
+	// 	});
 	// }
-  
 
-  //   // Remove full code blocks (triple backticks ``` and tilde blocks ~~~)
-  //   markdownContent = markdownContent.replace(/```[\s\S]*?```|~~~[\s\S]*?~~~/g, "");
-  //   // Remove images (![alt text](url) and Obsidian-style ![[image]] embeds)
-  //   markdownContent = markdownContent.replace(/!\[.*?\]\(.*?\)/g, "");
-  //   markdownContent = markdownContent.replace(/!\[\[.*?\]\]/g, "");
-
-  
-
-
-
-    
-    new Notice("Conversion to plain text completed!");
-   
-    
-    // const response = await this.sendToOpenAI(plainText);
-
-    // // organize the response in a  side bar that I can use 
-    // await this.openNewNote(response as string);
-  }
-
-  // Helper Method to prompt the user for input using Obsidian's modal
-  async promptUser(message: string, defaultValue: string): Promise<string> {
-    return new Promise((resolve) => {
-      const modal = new InputModal(this.app, message, defaultValue, resolve);
-      modal.open();
-    });
-  }
-
-
-
-  async sendToOpenAI(text: string)
-  {
-    const systemMessage = 
-    `
+	async sendToOpenAI(text: string) {
+		const systemMessage = `
     You are an AI fact checker, content organizer, and resource recommender. Your goal is to review the provided text, ensuring factual accuracy, logical flow, and clear content organization, as well as suggesting resources for further reading.
 
 Instructions:
@@ -141,89 +117,97 @@ Example:
 Provide your analysis in clear, plain text, using Markdown formatting where necessary.
     `;
 
-    try {
-      const response = await this.openAI.chat.completions.create(
-        {
-          model:'gpt-4o-mini',
-          messages: [
-              {role: 'system', content: systemMessage},
-              {role: 'user', content:text}
-          ]
-        });
+		try {
+			const response = await this.openAI.chat.completions.create({
+				model: "gpt-4o-mini",
+				messages: [
+					{ role: "system", content: systemMessage },
+					{ role: "user", content: text },
+				],
+			});
 
-        const result = response.choices[0].message.content;
-        return result;
-    } catch (error) {
-      console.error("Error communicating with OpenAI",error);
-      new Notice("Error during AI review");
-    }
-  }
+			const result = response.choices[0].message.content;
+			return result;
+		} catch (error) {
+			console.error("Error communicating with OpenAI", error);
+			new Notice("Error during AI review");
+		}
+	}
 
-  async openNewNote(content: string) {
-    console.log('Creating new note...');
-    
-    const markdownContent = `## AI Review\n\n${content}`;
-    
-    // Generate a valid file name by sanitizing the timestamp (remove invalid characters)
-    const fileName = `AI_Review_${new Date().toISOString().replace(/[:]/g, '-')}.md`; // Replace colons with dashes
-    const folderPath = 'AI_Reviews';  // Folder path for the note
-    const filePath = `${folderPath}/${fileName}`;  // Full file path including the folder
-    
-    try {
-        // Ensure the folder exists
-        const folderExists = await this.app.vault.adapter.exists(folderPath);
-        if (!folderExists) {
-            // If folder doesn't exist, create it
-            await this.app.vault.createFolder(folderPath);
-        }
+	async openNewNote(content: string) {
+		console.log("Creating new note...");
 
-        // Create the new file with the given content
-        await this.app.vault.create(filePath, markdownContent);
-        new Notice(`New note created: ${filePath}`);
-    } catch (error) {
-        console.error('Error creating note:', error);
-        new Notice('Failed to create a new note');
-    }
+		const markdownContent = `## AI Review\n\n${content}`;
+
+		// Generate a valid file name by sanitizing the timestamp (remove invalid characters)
+		const fileName = `AI_Review_${new Date()
+			.toISOString()
+			.replace(/[:]/g, "-")}.md`; // Replace colons with dashes
+		const folderPath = "AI_Reviews"; // Folder path for the note
+		const filePath = `${folderPath}/${fileName}`; // Full file path including the folder
+
+		try {
+			// Ensure the folder exists
+			const folderExists = await this.app.vault.adapter.exists(
+				folderPath
+			);
+			if (!folderExists) {
+				// If folder doesn't exist, create it
+				await this.app.vault.createFolder(folderPath);
+			}
+
+			// Create the new file with the given content
+			await this.app.vault.create(filePath, markdownContent);
+			new Notice(`New note created: ${filePath}`);
+
+			//Todo Add the backlink to the current file
+		} catch (error) {
+			console.error("Error creating note:", error);
+			new Notice("Failed to create a new note");
+		}
+	}
+
+	async onunload() {
+		console.log("AI Annotator Plugin Unloaded!");
+	}
 }
 
+// class InputModal extends Modal {
+// 	message: string;
+// 	defaultValue: string;
+// 	onSubmit: (value: string) => void;
 
+// 	constructor(
+// 		app: App,
+// 		message: string,
+// 		defaultValue: string,
+// 		onSubmit: (value: string) => void
+// 	) {
+// 		super(app);
+// 		this.message = message;
+// 		this.defaultValue = defaultValue;
+// 		this.onSubmit = onSubmit;
+// 	}
 
-  async onunload() {
-    console.log("AI Annotator Plugin Unloaded!");
-  }
-}
+// 	createBounds() {}
 
-class InputModal extends Modal {
-  message: string;
-  defaultValue: string;
-  onSubmit: (value: string) => void;
+// 	onOpen() {
+// 		const { contentEl } = this;
+// 		contentEl.empty();
+// 		contentEl.createEl("h2", { text: this.message });
 
-  constructor(app: App, message: string, defaultValue: string, onSubmit: (value: string) => void) {
-    super(app);
-    this.message = message;
-    this.defaultValue = defaultValue;
-    this.onSubmit = onSubmit;
-  }
+// 		const input = contentEl.createEl("input", {
+// 			type: "text",
+// 			value: this.defaultValue,
+// 		});
+// 		input.style.width = "100%";
 
-  createBounds()
-  {
+// 		const submitButton = contentEl.createEl("button", { text: "OK" });
+// 		submitButton.style.marginTop = "10px";
 
-  }
-
-  onOpen() {
-    const { contentEl } = this;
-    contentEl.empty();
-    contentEl.createEl("h2", { text: this.message });
-
-    const input = contentEl.createEl("input", { type: "text", value: this.defaultValue });
-    input.style.width = "100%";
-
-    const submitButton = contentEl.createEl("button", { text: "OK" });
-    submitButton.style.marginTop = "10px";
-
-    submitButton.addEventListener("click", () => {
-      this.onSubmit(input.value);
-      this.close();
-    });
-  }
-}
+// 		submitButton.addEventListener("click", () => {
+// 			this.onSubmit(input.value);
+// 			this.close();
+// 		});
+// 	}
+// }
