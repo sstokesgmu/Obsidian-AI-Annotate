@@ -139,7 +139,7 @@ export default class Parser {
 		}
 		return filterHeadings(new Map(sections))?? sections;
 	}
-    getContent(boundaries:any) {
+    getContent(boundaries:any):string {
 
 		console.log(boundaries);
 		//Todo: Validate the case where start and end are the same 
@@ -159,7 +159,7 @@ export default class Parser {
 		}
 		//Validate the options object 
         this.rules.forEach(rule => parsedText = parsedText.replace(rule.regPattern,""));
-        console.log(this.translateToPlaintext(parsedText));
+        return this.translateToPlaintext(parsedText);
     }
 	translateToPlaintext(content:string) {
 		return markdownToTxt(content);
