@@ -1,3 +1,21 @@
+# Obsidian AI-Annotator 
+
+- Backend: https://github.com/sstokesgmu/Obsidian-Plugin-Server 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Obsidian Sample Plugin
 
 This is a sample plugin for Obsidian (https://obsidian.md).
