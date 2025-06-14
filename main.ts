@@ -62,7 +62,7 @@ export default class AIAnnotatorPlugin extends Plugin {
 
 	async sendToOpenAI(text: any) {
 		try {
-			const response = await fetch('http://localhost:2000',
+			const response = await fetch('https://obsidian-plugin-server.onrender.com/',
 				{
 					method:'POST',
 					body:text,

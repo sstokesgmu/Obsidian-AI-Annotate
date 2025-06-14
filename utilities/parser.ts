@@ -148,14 +148,14 @@ export default class Parser {
 			`(^|\\n)(#{1,6}\\s*)?${boundaries.start}([\\s\\S]*?)${boundaries.end}([\\s\\S]*?)(?=\\n#{1,6}|$)`,
 			"i"
         );
-        let parsedText:string = '';
-		let extractedContent = this.markdownContent.match(regex);
-		if (extractedContent) {
-        	parsedText = extractedContent[0];
-		} else {
-		  	//? Else grab the whole note
+        let parsedText = '';
+		const extractedContent = this.markdownContent.match(regex);
+		
+		if (extractedContent) {parsedText = extractedContent[0];}
+		else {
+			//? Else grab the whole note
 			new Notice("No matching section found");
-			return;
+			return ``;
 		}
 		//Validate the options object 
         this.rules.forEach(rule => parsedText = parsedText.replace(rule.regPattern,""));
